@@ -63,8 +63,8 @@ Welcome to the Bright Smile Dental Systems Management Platform. This application
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/bright-smile-dental.git
-   cd bright-smile-dental
+   git clone https://github.com/RoCFae/dental_management
+   cd dental_management
    ```
 
 2. **Set Up Virtual Environment**
