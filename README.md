@@ -85,8 +85,14 @@ Welcome to the Bright Smile Dental Systems Management Platform. This application
    Ensure that PostgreSQL is installed and running.
    Create a new PostgreSQL database:
 
+   On Linux/macOS:
    ```bash
    sudo -u postgres psql
+   ```
+
+   On Linux/macOS:
+   ```bash
+   psql -U postgres
    ```
 
    In the PostgreSQL shell:
