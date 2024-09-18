@@ -96,7 +96,7 @@ class ClinicViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Affiliation not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-# ViewSet for managing doctors
+# viewSet for managing doctors
 @method_decorator(login_required, name='dispatch')
 class DoctorViewSet(viewsets.ModelViewSet):
     queryset = Doctor.objects.all()
@@ -132,7 +132,7 @@ class DoctorViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Clinic ID not provided."}, status=400)
 
 
-# ViewSet for managing patients
+# viewSet for managing patients
 @method_decorator(login_required, name='dispatch')
 class PatientViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all()
@@ -187,7 +187,6 @@ class PatientViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_409_CONFLICT
                 )
 
-            # Criar o novo agendamento
             Appointment.objects.create(
                 patient=patient,
                 doctor=doctor,
@@ -213,7 +212,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         data = request.data
         doctors_notes = data.get('doctors_notes', '')
 
-        # Criar uma Visita
         Visit.objects.create(
             patient=appointment.patient,
             doctor=appointment.doctor,
@@ -223,7 +221,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             doctors_notes=doctors_notes
         )
 
-        # Atualizar o status do agendamento
         appointment.status = AppointmentStatusChoices.COMPLETED
         appointment.save()
 
