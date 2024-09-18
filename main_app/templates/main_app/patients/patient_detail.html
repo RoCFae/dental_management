@@ -1,0 +1,492 @@
+{% extends 'main_app/base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="h3 mb-4">Patient Details - {{ patient.name }}</h1>
+
+    <form id="edit-patient-form" onsubmit="savePatientDetails(event)">
+        {% csrf_token %}
+        <h3 class="h5 mb-3">Personal Information</h3>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" id="name" class="form-control" value="{{ patient.name }}" />
+            </div>
+            <div class="col-md-6">
+                <label for="date_of_birth" class="form-label">Date of Birth</label>
+                <input type="date" id="date_of_birth" class="form-control" value="{{ patient.date_of_birth|date:"Y-m-d" }}" />
+            </div>
+            <div class="col-md-6">
+                <label for="address" class="form-label">Address</label>
+                <input type="text" id="address" class="form-control" value="{{ patient.address }}" />
+            </div>
+            <div class="col-md-6">
+                <label for="phone_number" class="form-label">Phone</label>
+                <input type="text" id="phone_number" class="form-control" value="{{ patient.phone_number }}" />
+            </div>
+            <div class="col-md-6">
+                <label for="gender" class="form-label">Gender</label>
+                <select id="gender" class="form-select">
+                    <option value="M" {% if patient.gender == 'M' %} selected {% endif %}>Male</option>
+                    <option value="F" {% if patient.gender == 'F' %} selected {% endif %}>Female</option>
+                    <option value="O" {% if patient.gender == 'O' %} selected {% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="ssn_last4" class="form-label">Last 4 SSN</label>
+                <input type="text" id="ssn_last4" class="form-control" value="{{ patient.ssn_last4 }}" />
+            </div>
+            <div class="col-12 d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-success">Save Changes</button>
+            </div>
+        </div>
+    </form>
+
+    <h3 class="h5 mt-5 mb-3">Visit History</h3>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Visit Date</th>
+                    <th>Doctor</th>
+                    <th>Clinic</th>
+                    <th>Procedures</th>
+                    <th>Doctor's Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for visit in patient.visits %}
+                <tr>
+                    <td>{{ visit.visit_date|date:"Y-m-d H:i" }}</td>
+                    <td>{{ visit.doctor_name }}</td>
+                    <td>{{ visit.clinic_name }}</td>
+                    <td>{{ visit.procedures_done }}</td>
+                    <td>{{ visit.doctors_notes }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No visit history available for this patient.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h3 class="h5 mt-5">Next Appointment</h3>
+    <div class="card mt-3 mb-4">
+        <div class="card-body">
+            {% if patient.next_appointment_date %}
+            <p><strong>Appointment Date:</strong> {{ patient.next_appointment_date|date:"Y-m-d H:i" }}</p>
+            <p><strong>Doctor:</strong> {{ patient.next_appointment_doctor }}</p>
+            <p><strong>Clinic:</strong> {{ patient.next_appointment_clinic }}</p>
+            <p><strong>Procedure:</strong> {{ patient.next_appointment_procedure }}</p>
+            {% else %}
+            <p class="mb-0">No next appointment scheduled.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end">
+        <button class="btn btn-primary" onclick="openAppointmentModal()">Schedule New Appointment</button>
+    </div>
+</div>
+
+<div id="appointment-modal" class="modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schedule an Appointment</h5>
+                <button type="button" class="btn-close" onclick="closeAppointmentModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="appointment-form" onsubmit="scheduleAppointment(event)">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="procedure" class="form-label">Procedure</label>
+                        <select class="form-select" id="procedure" required onchange="checkFields()">
+                            <option value="" disabled selected>Select a procedure</option>
+                            <option value="Cleaning">Cleaning</option>
+                            <option value="Filling">Filling</option>
+                            <option value="Root Canal">Root Canal</option>
+                            <option value="Crown">Crown</option>
+                            <option value="Teeth Whitening">Teeth Whitening</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clinic" class="form-label">Clinic</label>
+                        <select class="form-select" id="clinic" required onchange="checkFields()">
+                            <option value="" disabled selected>Select a clinic</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="doctor" class="form-label">Doctor</label>
+                        <select class="form-select" id="doctor" required onchange="checkFields()">
+                            <option value="" disabled selected>Select a doctor</option>
+                        </select>
+                        <div id="doctor-error" class="text-danger mt-2" style="display: none">
+                            No doctors available for this clinic
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="appointment-datetimepicker" class="form-label">Available Times</label>
+                        <input
+                            type="text"
+                            id="appointment-datetimepicker"
+                            class="form-control"
+                            placeholder="Select date and time"
+                            disabled
+                        />
+                    </div>
+                    <div class="mb-3">
+                        <label for="doctors_notes" class="form-label">Doctor's Notes</label>
+                        <textarea class="form-control" id="doctors_notes" rows="3" placeholder="Enter doctor's notes"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAppointmentModal()">Close</button>
+                <button type="button" class="btn btn-success" onclick="scheduleAppointment(event)">Schedule Appointment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getCSRFToken() {
+        const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+        return csrfToken ? csrfToken.value : "";
+    }
+
+    function savePatientDetails(event) {
+        event.preventDefault();
+
+        const patientData = {
+            name: document.getElementById("name").value,
+            date_of_birth: document.getElementById("date_of_birth").value,
+            address: document.getElementById("address").value,
+            phone_number: document.getElementById("phone_number").value,
+            gender: document.getElementById("gender").value,
+            ssn_last4: document.getElementById("ssn_last4").value
+        };
+
+        fetch(`/api/patients/{{ patient.id }}/`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken(),
+            },
+            body: JSON.stringify(patientData),
+        })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error("Failed to update patient details");
+            }
+            return response.json();
+        })
+        .then((data) => {
+            alert("Patient details updated successfully");
+            location.reload();
+        })
+        .catch((error) => {
+            console.error("Error updating patient details:", error);
+            alert("Error updating patient details");
+        });
+    }
+
+    document.getElementById("procedure").addEventListener("change", function () {
+        const procedure = this.value;
+
+        fetch(`/api/clinics/?procedure=${procedure}`)
+            .then((response) => response.json())
+            .then((data) => {
+                const clinicSelect = document.getElementById("clinic");
+                clinicSelect.innerHTML = '<option value="" disabled selected>Select a clinic</option>';
+
+                if (data.length > 0) {
+                    data.forEach((clinic) => {
+                        clinicSelect.innerHTML += `<option value="${clinic.id}">${clinic.name}</option>`;
+                    });
+                } else {
+                    clinicSelect.innerHTML = "<option disabled>No clinics available for this procedure</option>";
+                }
+
+                document.getElementById("doctor").innerHTML = '<option value="" disabled selected>Select a doctor</option>';
+                document.getElementById("doctor-error").style.display = "none";
+            })
+            .catch((error) => console.error("Error fetching clinics:", error));
+    });
+
+    document.getElementById("clinic").addEventListener("change", function () {
+      const clinicId = this.value;
+      const procedure = document.getElementById("procedure").value;
+
+      fetch(`/api/clinics/${clinicId}/doctors/?procedure=${procedure}`)
+          .then((response) => response.json())
+          .then((data) => {
+              const doctorSelect = document.getElementById("doctor");
+              doctorSelect.innerHTML = '<option value="" disabled selected>Select a doctor</option>';
+              const doctorError = document.getElementById("doctor-error");
+
+              if (data.length > 0) {
+                  let hasDoctors = false;
+                  data.forEach((affiliation) => {
+                      if (
+                          Array.isArray(affiliation.doctor_specialties) &&
+                          affiliation.doctor_specialties.includes(procedure)
+                      ) {
+                          doctorSelect.innerHTML += `<option value="${affiliation.doctor_id}">${affiliation.doctor_name}</option>`;
+                          hasDoctors = true;
+                      }
+                  });
+
+                  if (!hasDoctors) {
+                      doctorError.style.display = "block";
+                  } else {
+                      doctorError.style.display = "none";
+                  }
+              } else {
+                  doctorError.style.display = "block";
+                  doctorSelect.innerHTML = "<option disabled>No doctors available</option>";
+              }
+          })
+          .catch((error) => {
+              console.error("Error fetching doctors:", error);
+              document.getElementById("doctor-error").style.display = "block";
+              doctorSelect.innerHTML = "<option disabled>Error loading doctors</option>";
+          });
+    });
+
+    const daysMap = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+
+    function checkFields() {
+      const procedure = document.getElementById("procedure").value;
+      const clinic = document.getElementById("clinic").value;
+      const doctor = document.getElementById("doctor").value;
+
+      if (procedure && clinic && doctor) {
+          loadAvailableTimeSlots();
+      } else {
+          document.getElementById("appointment-datetimepicker").disabled = true;
+      }
+    }
+
+    function loadAvailableTimeSlots() {
+      const doctorId = document.getElementById("doctor").value;
+      const clinicId = document.getElementById("clinic").value;
+
+      fetch(`/api/doctors/${doctorId}/available_time_slots/?clinic_id=${clinicId}`)
+          .then((response) => {
+              if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+          })
+          .then((data) => {
+              const availableDays = getAvailableDays(data);
+
+              initializeFlatpickr(availableDays, data);
+
+              document.getElementById("appointment-datetimepicker").disabled = false;
+          })
+          .catch((error) => {
+              console.error("Error fetching available time slots:", error);
+        });
+    }
+
+    function getAvailableDays(data) {
+        const availableDays = [];
+        for (const [day, times] of Object.entries(data)) {
+            if (times.length > 0) {
+                availableDays.push(daysMap[day]);
+            }
+        }
+        return availableDays;
+    }
+
+    function getTimeRestrictionsForDay(day, data) {
+        const times = data[day];
+        if (times) {
+            return {
+                minTime: times[0],
+                maxTime: times[1],
+            };
+        }
+        return null;
+    }
+
+    function initializeFlatpickr(availableDays, data) {
+        flatpickr("#appointment-datetimepicker", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            enable: [
+                function (date) {
+                    return availableDays.includes(date.getDay());
+                },
+            ],
+            onChange: function (selectedDates, dateStr, instance) {
+                const selectedDate = selectedDates[0];
+                const dayOfWeek = selectedDate.toLocaleDateString("en-us", {
+                    weekday: "long",
+                });
+
+                const timeRestrictions = getTimeRestrictionsForDay(dayOfWeek, data);
+                if (timeRestrictions) {
+                    instance.set("minTime", timeRestrictions.minTime);
+                    instance.set("maxTime", timeRestrictions.maxTime);
+                }
+            },
+        });
+    }
+
+    function scheduleAppointment(event) {
+        event.preventDefault();
+
+        const procedure = document.getElementById("procedure").value;
+        const clinic = document.getElementById("clinic").value;
+        const doctor = document.getElementById("doctor").value;
+        const appointmentDate = document.getElementById("appointment-datetimepicker").value;
+        const doctors_notes = document.getElementById("doctors_notes").value;
+
+        if (!appointmentDate) {
+            alert("Please select a valid appointment date.");
+            return;
+        }
+
+        const appointmentData = {
+            procedure: procedure,
+            clinic_id: clinic,
+            doctor_id: doctor,
+            appointment_date: appointmentDate,
+            doctors_notes: doctors_notes
+        };
+
+        fetch(`/api/patients/{{ patient.id }}/schedule_appointment/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken(),
+            },
+            body: JSON.stringify(appointmentData),
+        })
+        .then(response => {
+            if (response.status === 409) {
+                return response.json().then((data) => {
+                    alert(data.error || "This doctor already has an appointment at the selected time.");
+                    throw new Error("Conflict");
+                });
+            }
+            if (!response.ok) {
+                throw new Error("Failed to schedule appointment");
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert("Appointment scheduled successfully");
+            closeAppointmentModal();
+            location.reload();
+        })
+        .catch(error => {
+            if (error.message !== "Conflict") {
+                alert("Error scheduling appointment");
+            }
+        });
+    }
+
+    document.getElementById("doctor").addEventListener("change", function () {
+        const doctorId = this.value;
+        const clinicId = document.getElementById("clinic").value;
+
+        fetch(`/api/doctors/${doctorId}/available_time_slots/?clinic_id=${clinicId}`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                const availableDays = getAvailableDays(data);
+
+                initializeFlatpickr(availableDays, data);
+            })
+            .catch((error) => {
+                console.error("Error fetching available time slots:", error);
+            });
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+        flatpickr("#appointment-datetimepicker", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+        });
+    });
+
+    function openAppointmentModal() {
+        document.getElementById("appointment-modal").style.display = "block";
+        fetch("/api/clinics/")
+            .then((response) => response.json())
+            .then((data) => {
+                const clinicSelect = document.getElementById("clinic");
+                clinicSelect.innerHTML = '<option value="" disabled selected>Select a clinic</option>';
+                data.forEach((clinic) => {
+                    clinicSelect.innerHTML += `<option value="${clinic.id}">${clinic.name}</option>`;
+                });
+            })
+            .catch((error) => console.error("Error fetching clinics:", error));
+    }
+
+    function closeAppointmentModal() {
+        document.getElementById("appointment-modal").style.display = "none";
+    }
+</script>
+
+<style>
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        padding-top: 60px;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-dialog {
+        max-width: 800px;
+        margin: 1.75rem auto;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        border: 1px solid #888;
+        border-radius: 0.3rem;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+
+    .modal-title {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .btn-close {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+    }
+</style>
+{% endblock %}

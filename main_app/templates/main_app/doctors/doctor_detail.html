@@ -1,0 +1,200 @@
+{% extends 'main_app/base.html' %} {% block content %}
+<div class="container mt-4">
+  <h1 class="h3 mb-4">Doctor Details - {{ doctor.name }}</h1>
+
+  <!-- Doctor Edit Form -->
+  <form id="doctor-edit-form">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label for="doctor-npi" class="form-label">NPI</label>
+        <input
+          type="text"
+          class="form-control"
+          id="doctor-npi"
+          value="{{ doctor.npi }}"
+          required
+        />
+      </div>
+      <div class="col-md-6">
+        <label for="doctor-name" class="form-label">Name</label>
+        <input
+          type="text"
+          class="form-control"
+          id="doctor-name"
+          value="{{ doctor.name }}"
+          required
+        />
+      </div>
+      <div class="col-md-6">
+        <label for="doctor-email" class="form-label">Email</label>
+        <input
+          type="email"
+          class="form-control"
+          id="doctor-email"
+          value="{{ doctor.email }}"
+          required
+        />
+      </div>
+      <div class="col-md-6">
+        <label for="doctor-phone" class="form-label">Phone</label>
+        <input
+          type="text"
+          class="form-control"
+          id="doctor-phone"
+          value="{{ doctor.phone_number }}"
+          required
+        />
+      </div>
+      <div class="col-12">
+        <label for="doctor-specialties" class="form-label">Specialties</label>
+        <div class="row">
+          {% for specialty in all_specialties %}
+          <div class="col-md-4">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="specialty-{{ specialty.id }}"
+                value="{{ specialty.id }}"
+                name="specialties"
+                {% if specialty in doctor.specialties.all %}checked{% endif %}
+              />
+              <label
+                class="form-check-label"
+                for="specialty-{{ specialty.id }}"
+              >
+                {{ specialty.name }}
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="doctor-edit-error-message" class="text-danger mt-2"></div>
+      <div class="col-12 d-flex justify-content-end mt-3">
+        <button type="submit" class="btn btn-success">Save Changes</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Affiliated Clinics -->
+  <h2 class="h4 mt-5">Affiliated Clinics</h2>
+  <div class="table-responsive mt-3">
+    <table class="table table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Clinic Name</th>
+          <th>Office Address</th>
+          <th>Working Schedule</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for affiliation in affiliations %}
+        <tr>
+          <td>{{ affiliation.clinic.name }}</td>
+          <td>{{ affiliation.office_address }}</td>
+          <td><pre>{{ affiliation.working_schedule }}</pre></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="text-center">No affiliated clinics.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Affiliated Patients -->
+  <h2 class="h4 mt-5">Affiliated Patients</h2>
+  <div class="table-responsive mt-3">
+    <table class="table table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Patient Name</th>
+          <th>Date of Birth</th>
+          <th>Last Visit Date</th>
+          <th>Next Appointment</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr>
+          <td>{{ patient.name }}</td>
+          <td>{{ patient.date_of_birth }}</td>
+          <td>{{ patient.last_visit_date|date:"Y-m-d H:i" }}</td>
+          <td>{{ patient.next_appointment_date|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center">No affiliated patients.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // handle form submission for editing doctor details
+  document
+    .getElementById("doctor-edit-form")
+    .addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const selectedSpecialties = Array.from(
+        document.querySelectorAll('input[name="specialties"]:checked')
+      ).map((checkbox) => checkbox.value);
+
+      // Prepare updated doctor object with form values
+      const updatedDoctor = {
+        npi: document.getElementById("doctor-npi").value,
+        name: document.getElementById("doctor-name").value,
+        email: document.getElementById("doctor-email").value,
+        phone_number: document.getElementById("doctor-phone").value,
+        specialties_ids: selectedSpecialties, 
+      };
+
+      // Send a PUT request to update doctor details
+      fetch(`/api/doctors/{{ doctor.id }}/`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify(updatedDoctor),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Error updating doctor");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          alert("Doctor details updated successfully");
+          location.reload();
+        })
+        .catch((error) => {
+          document.getElementById("doctor-edit-error-message").textContent =
+            "Error updating doctor.";
+          console.error("Error updating doctor:", error);
+        });
+    });
+
+  // function to get CSRF token for secure requests
+  function getCSRFToken() {
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+    return csrfToken ? csrfToken.value : "";
+  }
+</script>
+
+<style>
+  @media (min-width: 768px) {
+    .row .col-md-6 {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+  }
+</style>
+{% endblock %}

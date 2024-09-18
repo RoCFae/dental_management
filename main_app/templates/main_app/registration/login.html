@@ -1,0 +1,116 @@
+{% extends 'main_app/base.html' %} {% load static %} {% load custom_filters %}
+{% block content %}
+<style>
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    background: url("{% static 'imgs/bg_image.webp' %}") no-repeat center center
+      fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .login-card {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .login-card h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #333;
+  }
+
+  .login-card .form-control {
+    margin-bottom: 15px;
+    border-radius: 50px;
+    padding-left: 40px;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .login-card .form-group {
+    position: relative;
+    text-align: left;
+  }
+
+  .login-card .form-group i {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    color: #999;
+  }
+
+  .login-card button {
+    width: 100%;
+    border-radius: 50px;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .login-card button:hover {
+    background-color: #007bff;
+  }
+
+  .login-card p {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  .login-logo img {
+    max-width: 150px;
+    margin-bottom: 20px;
+  }
+</style>
+
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="{% static 'imgs/logo_bright_smile.png' %}" alt="Logo" />
+    </div>
+    <h2>Login to Your Account</h2>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="email">Email</label>
+        <i class="fas fa-envelope"></i>
+        {{ form.username|add_class:"form-control" }}
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <i class="fas fa-lock"></i>
+        {{ form.password|add_class:"form-control" }}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+
+    {% if form.non_field_errors %}
+    <div class="text-danger mt-3">{{ form.non_field_errors }}</div>
+    {% endif %}
+  </div>
+</div>
+
+
+{% endblock %}

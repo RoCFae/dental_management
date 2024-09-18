@@ -1,0 +1,447 @@
+{% extends 'main_app/base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="h3 mb-4">Edit Clinic - {{ clinic.name }}</h1>
+
+    <!-- Clinic Edit Form -->
+    <form id="clinic-edit-form" onsubmit="submitClinicEdit(event)">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="clinic-name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="clinic-name" value="{{ clinic.name }}" required />
+            </div>
+            <div class="col-md-6">
+                <label for="clinic-phone" class="form-label">Phone</label>
+                <input type="text" class="form-control" id="clinic-phone" value="{{ clinic.phone_number }}" required />
+            </div>
+            <div class="col-md-6">
+                <label for="clinic-city" class="form-label">City</label>
+                <input type="text" class="form-control" id="clinic-city" value="{{ clinic.city }}" required />
+            </div>
+            <div class="col-md-6">
+                <label for="clinic-state" class="form-label">State</label>
+                <input type="text" class="form-control" id="clinic-state" value="{{ clinic.state }}" required />
+            </div>
+            <div class="col-md-12">
+                <label for="clinic-address" class="form-label">Address</label>
+                <input type="text" class="form-control" id="clinic-address" value="{{ clinic.address }}" required />
+            </div>
+            <div class="col-md-12">
+                <label for="clinic-email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="clinic-email" value="{{ clinic.email }}" required />
+            </div>
+            <div id="form-error-message" class="text-danger mt-2"></div>
+            <div class="col-12 d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-success">Save Changes</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Affiliated Doctors -->
+    <h2 class="h4 mt-5">Affiliated Doctors</h2>
+    <div class="d-flex justify-content-end">
+        <button class="btn btn-primary mb-3" onclick="openSideMenu('add')">Add New Affiliation</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Doctor Name</th>
+                    <th>Office Address</th>
+                    <th>Working Schedule</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+              {% for doctor in doctors %}
+              {% for affiliation in doctor.affiliations.all %}
+              {% if affiliation.clinic.id == clinic.id %}
+              <tr>
+                <td>{{ doctor.name }}</td>
+                <td>{{ affiliation.office_address }}</td>
+                <td>
+                  <pre>{{ affiliation.working_schedule|safe }}</pre>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-primary"
+                    data-doctor-id="{{ doctor.id }}"
+                    data-office-address="{{ affiliation.office_address }}"
+                    data-working-schedule='{{ affiliation.working_schedule|safe }}'
+                    onclick="handleEditClick(this)">
+                    Edit
+                  </button>
+                  <button class="btn btn-danger" onclick="removeAffiliation('{{ doctor.id }}', '{{ doctor.name }}')">
+                    Remove
+                  </button>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+              {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Side Menu for Adding/Editing Doctor Affiliation -->
+<div id="side-menu" class="side-menu">
+    <div class="side-menu-content">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 id="side-menu-title">Add/Edit Doctor Affiliation</h2>
+            <button class="btn-close" onclick="closeSideMenu()"></button>
+        </div>
+
+        <form id="doctor-affiliation-form" onsubmit="submitDoctorAffiliation(event)">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="doctor-id" class="form-label">Doctor</label>
+                <select id="doctor-id" class="form-select" required>
+                    <option value="" disabled selected>Select Doctor</option>
+                </select>
+                <div id="doctor-id-error" class="text-danger"></div>
+            </div>
+            <div class="mb-3">
+                <label for="doctor-office-address" class="form-label">Office Address</label>
+                <input type="text" class="form-control" id="doctor-office-address" required />
+                <div id="office-address-error" class="text-danger"></div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Working Schedule</label>
+                <div id="working-schedule-fields">
+                    {% for day in days_of_week %}
+                    <div class="row align-items-center mb-2">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input"
+                                    id="{{ day|lower }}"
+                                    onchange="toggleScheduleField('{{ day|lower }}')"
+                                />
+                                <label class="form-check-label" for="{{ day|lower }}">{{ day }}</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <input
+                                type="text"
+                                class="form-control schedule-time"
+                                id="{{ day|lower }}-start"
+                                placeholder="Start Time"
+                                disabled
+                            />
+                        </div>
+                        <div class="col-md-4">
+                            <input
+                                type="text"
+                                class="form-control schedule-time"
+                                id="{{ day|lower }}-end"
+                                placeholder="End Time"
+                                disabled
+                            />
+                        </div>
+                        <div class="col-md-12">
+                            <div id="{{ day|lower }}-error" class="text-danger"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="general-error-message" class="text-danger" style="display: none;"></div>
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-success">Save Affiliation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+  const clinicId = "{{ clinic.id }}";
+
+  // function to validate the affiliation form
+  function validateAffiliationForm() {
+    let isValid = true;
+
+    // clear previous errors
+    document.getElementById('doctor-id-error').textContent = '';
+    document.getElementById('office-address-error').textContent = '';
+    document.getElementById('general-error-message').textContent = '';
+
+    const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    daysOfWeek.forEach((day) => {
+        document.getElementById(`${day}-error`).textContent = '';  // Clear previous day errors
+    });
+
+    // validate doctor selection
+    const doctorId = document.getElementById('doctor-id').value;
+    if (!doctorId) {
+        document.getElementById('doctor-id-error').textContent = 'Please select a doctor.';
+        isValid = false;
+    }
+
+    // validate office address
+    const officeAddress = document.getElementById('doctor-office-address').value;
+    if (!officeAddress) {
+        document.getElementById('office-address-error').textContent = 'Office address is required.';
+        isValid = false;
+    }
+
+    // validate working schedule times
+    daysOfWeek.forEach((day) => {
+        const isChecked = document.getElementById(day).checked;
+        const startTime = document.getElementById(`${day}-start`).value;
+        const endTime = document.getElementById(`${day}-end`).value;
+
+        if (isChecked) {
+            if (!startTime || !endTime) {
+                document.getElementById(`${day}-error`).textContent = 'Start and end time are required.';
+                isValid = false;
+            } else if (new Date(`1970-01-01T${startTime}`) >= new Date(`1970-01-01T${endTime}`)) {
+                document.getElementById(`${day}-error`).textContent = 'Start time must be earlier than end time.';
+                isValid = false;
+            }
+        }
+    });
+
+    return isValid;
+  }
+
+  // function to handle the edit button
+  function handleEditClick(button) {
+    const doctorId = button.getAttribute("data-doctor-id");
+    const officeAddress = button.getAttribute("data-office-address");
+
+    // Parse the working schedule JSON
+    let workingScheduleRaw = button.getAttribute("data-working-schedule");
+
+    let workingSchedule = {};
+    if (workingScheduleRaw) {
+        try {
+            workingSchedule = JSON.parse(workingScheduleRaw);
+        } catch (e) {
+            console.error("Invalid JSON in working schedule:", e);
+        }
+    }
+
+    openSideMenu("edit", doctorId, officeAddress, workingSchedule);
+  }
+
+  // function to open the side menu to add or edit affiliations
+  function openSideMenu(action, doctorId = null, officeAddress = "", workingSchedule = {}) {
+    const sideMenu = document.getElementById("side-menu");
+    const title = document.getElementById("side-menu-title");
+    const form = document.getElementById("doctor-affiliation-form");
+
+    if (action === "edit" && doctorId) {
+      title.textContent = "Edit Doctor Affiliation";
+      form.onsubmit = function (event) {
+        event.preventDefault();
+        editDoctorAffiliation(doctorId);
+      };
+
+      document.getElementById("doctor-office-address").value = officeAddress;
+
+      // load working schedule fields
+      Object.keys(workingSchedule).forEach((day) => {
+        const startTime = workingSchedule[day][0];
+        const endTime = workingSchedule[day][1];
+        const dayLower = day.toLowerCase();
+
+        document.getElementById(dayLower).checked = true;
+        document.getElementById(`${dayLower}-start`).value = startTime;
+        document.getElementById(`${dayLower}-end`).value = endTime;
+
+        toggleScheduleField(dayLower);
+      });
+    }
+
+    // load doctors before opening the menu
+    loadDoctorsForAffiliation(doctorId).then(() => {
+      sideMenu.style.width = "600px"; 
+    });
+  }
+
+  // function to load doctors and preselect the correct doctor
+  function loadDoctorsForAffiliation(selectedDoctorId = null) {
+    return new Promise((resolve, reject) => {
+      const doctorSelect = document.getElementById("doctor-id");
+
+      if (!doctorSelect) {
+        reject("Doctor select element not found.");
+        return;
+      }
+
+      fetch("/api/doctors/")
+        .then((response) => response.json())
+        .then((data) => {
+          doctorSelect.innerHTML = '<option value="" disabled>Select Doctor</option>';
+          data.forEach((doctor) => {
+            const option = document.createElement("option");
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            if (selectedDoctorId && doctor.id === parseInt(selectedDoctorId)) {
+              option.selected = true;
+            }
+            doctorSelect.appendChild(option);
+          });
+          resolve();
+        })
+        .catch((error) => {
+          console.error("Error fetching doctors:", error);
+          reject(error);
+        });
+    });
+  }
+
+  // function to remove an affiliation
+  function removeAffiliation(doctorId, doctorName) {
+    if (confirm(`Are you sure you want to remove Dr. ${doctorName} from this clinic?`)) {
+      fetch(`/api/clinics/${clinicId}/remove_affiliation/${doctorId}/`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRFToken': getCSRFToken(),
+        },
+      })
+      .then(response => {
+        if (response.ok) {
+          alert('Doctor affiliation removed successfully.');
+          location.reload(); 
+        } else {
+          return response.json().then(data => {
+            throw new Error(data.error || 'Failed to remove affiliation.');
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error removing affiliation:', error);
+        alert(error.message);
+      });
+    }
+  }
+
+  // function to toggle working schedule fields based on checkbox
+  function toggleScheduleField(day) {
+    const isChecked = document.getElementById(day).checked;
+    document.getElementById(`${day}-start`).disabled = !isChecked;
+    document.getElementById(`${day}-end`).disabled = !isChecked;
+  }
+
+  // initialize Flatpickr for time fields
+  document.addEventListener("DOMContentLoaded", function () {
+    const scheduleFields = document.querySelectorAll(".schedule-time");
+    scheduleFields.forEach((field) => {
+      flatpickr(field, {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+      });
+    });
+  });
+
+  // reset side menu form when closing the menu
+  function resetSideMenuForm() {
+    document.getElementById("doctor-affiliation-form").reset();
+
+    const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    daysOfWeek.forEach((day) => {
+      document.getElementById(day).checked = false;
+      document.getElementById(`${day}-start`).disabled = true;
+      document.getElementById(`${day}-end`).disabled = true;
+      document.getElementById(`${day}-start`).value = '';
+      document.getElementById(`${day}-end`).value = '';
+    });
+  }
+
+  // submit the doctor affiliation form
+  function submitDoctorAffiliation(event) {
+    event.preventDefault();
+    if (!validateAffiliationForm()) {
+        document.getElementById('general-error-message').textContent = 'Please fix the errors above.';
+        document.getElementById('general-error-message').style.display = 'block';
+        return;
+    }
+
+    document.getElementById('general-error-message').style.display = 'none';
+
+    const schedule = {};
+    ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].forEach((day) => {
+      const isChecked = document.getElementById(day).checked;
+      if (isChecked) {
+        const startTime = document.getElementById(`${day}-start`).value;
+        const endTime = document.getElementById(`${day}-end`).value;
+        schedule[day.charAt(0).toUpperCase() + day.slice(1)] = [startTime, endTime];
+      }
+    });
+
+    const doctorId = document.getElementById("doctor-id").value;
+    const officeAddress = document.getElementById("doctor-office-address").value;
+
+    fetch(`/api/clinics/${clinicId}/add_affiliation/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify({
+        doctor_id: doctorId,
+        office_address: officeAddress,
+        working_schedule: schedule,
+      }),
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.error) {
+        alert(data.error);
+      } else {
+        alert("Affiliation added successfully");
+        closeSideMenu();
+        location.reload();
+      }
+    })
+    .catch((error) => {
+      console.error("Error adding affiliation:", error);
+      alert("Error adding affiliation");
+    });
+  }
+
+  // close the side menu
+  function closeSideMenu() {
+    document.getElementById("side-menu").style.width = "0";
+    resetSideMenuForm();
+  }
+
+  // get CSRF token for secure requests
+  function getCSRFToken() {
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+    return csrfToken ? csrfToken.value : "";
+  }
+</script>
+
+<style>
+ .side-menu {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: #fff;
+    overflow-x: hidden;
+    transition: 0.5s;
+    padding: 20px;
+    z-index: 1050;
+    border-left: 1px solid #dee2e6;
+  }
+
+  .side-menu-content {
+    padding: 20px;
+  }
+
+  .modal-backdrop.show {
+    opacity: 0;
+  }
+</style>
+
+{% endblock %}

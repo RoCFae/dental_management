@@ -1,0 +1,212 @@
+{% extends 'main_app/base.html' %} {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3">Clinics</h1>
+  <button class="btn btn-primary" onclick="openSideMenu()">Add Clinic</button>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>City</th>
+        <th>State</th>
+        <th>Doctors</th>
+        <th>Patients</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="clinics-table-body">
+      <!-- Content loaded via API -->
+    </tbody>
+  </table>
+</div>
+
+<!-- Side Menu for Adding Clinics -->
+<div id="side-menu" class="side-menu">
+  <div class="side-menu-content">
+    <div class="d-flex justify-content-between align-items-center my-4">
+      <h2 id="side-menu-title">Add Clinic</h2>
+      <button class="btn-close" onclick="closeSideMenu()"></button>
+    </div>
+
+    <form id="clinic-form" onsubmit="saveClinic(event)">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label for="clinic-name" class="form-label">Name</label>
+        <input type="text" class="form-control" id="clinic-name" required />
+      </div>
+      <div class="mb-3">
+        <label for="clinic-phone" class="form-label">Phone</label>
+        <input type="text" class="form-control" id="clinic-phone" required />
+      </div>
+      <div class="mb-3">
+        <label for="clinic-city" class="form-label">City</label>
+        <input type="text" class="form-control" id="clinic-city" required />
+      </div>
+      <div class="mb-3">
+        <label for="clinic-state" class="form-label">State</label>
+        <input type="text" class="form-control" id="clinic-state" required />
+      </div>
+      <div id="form-error-message" class="text-danger mb-3"></div>
+      <button type="submit" class="btn btn-success w-100">Save</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // open the side menu to add a new clinic
+  function openSideMenu() {
+    const sideMenu = document.getElementById("side-menu");
+    resetForm();
+    sideMenu.style.width = "300px";
+  }
+
+  // close the side menu
+  function closeSideMenu() {
+    document.getElementById("side-menu").style.width = "0";
+  }
+
+  // reset form fields
+  function resetForm() {
+    document.getElementById("clinic-form").reset();
+  }
+
+  // save a new clinic
+  function saveClinic(event) {
+    event.preventDefault();
+
+    const newClinic = {
+      name: document.getElementById("clinic-name").value,
+      phone_number: document.getElementById("clinic-phone").value,
+      city: document.getElementById("clinic-city").value,
+      state: document.getElementById("clinic-state").value,
+    };
+
+    // make POST request to save the clinic
+    fetch("/api/clinics/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify(newClinic),
+    })
+      .then((response) => {
+        if (response.ok) {
+          closeSideMenu();
+          location.reload();
+        } else {
+          throw new Error("Error saving clinic");
+        }
+      })
+      .catch((error) => {
+        document.getElementById("form-error-message").textContent =
+          "Error saving clinic.";
+      });
+  }
+
+  // fetch existing clinics and load them into the table
+  document.addEventListener("DOMContentLoaded", function () {
+    fetch("/api/clinics/")
+      .then((response) => response.json())
+      .then((data) => {
+        const tableBody = document.getElementById("clinics-table-body");
+        data.forEach((clinic) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+          <td>${clinic.name}</td>
+          <td>${clinic.phone_number}</td>
+          <td>${clinic.city}</td>
+          <td>${clinic.state}</td>
+          <td>${clinic.affiliated_doctors_count || 0}</td>
+          <td>${clinic.affiliated_patients_count || 0}</td>
+          <td>
+            <button class="btn btn-outline-primary" onclick="redirectToEditPage(${
+              clinic.id
+            })">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-danger" onclick="deleteClinic(${
+              clinic.id
+            })">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+          tableBody.appendChild(row);
+        });
+      })
+      .catch((error) => console.error("Error fetching clinics:", error));
+  });
+
+  // delete a clinic
+  function deleteClinic(id) {
+    if (confirm("Are you sure you want to delete this clinic?")) {
+      fetch(`/api/clinics/${id}/`, {
+        method: "DELETE",
+        headers: {
+          "X-CSRFToken": getCSRFToken(),
+        },
+      })
+        .then((response) => {
+          if (response.ok) {
+            location.reload();
+          } else {
+            throw new Error("Error deleting clinic");
+          }
+        })
+        .catch((error) => {
+          console.error("Error deleting clinic:", error);
+        });
+    }
+  }
+
+  // redirect to the clinic edit/detail page
+  function redirectToEditPage(clinicId) {
+    window.location.href = `/clinics/${clinicId}/`;
+  }
+
+  // get CSRF token for secure requests
+  function getCSRFToken() {
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
+    return csrfToken ? csrfToken.value : "";
+  }
+</script>
+
+<!-- CSS for side menu -->
+<style>
+  .side-menu {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: #f1f1f1;
+    overflow-x: hidden;
+    transition: 0.5s;
+    padding-top: 20px;
+  }
+
+  .side-menu-content {
+    padding: 20px;
+  }
+
+  .close-btn {
+    font-size: 30px;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+
+  .d-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #side-menu-title {
+    margin: 0;
+  }
+</style>
+{% endblock %}

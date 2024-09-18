@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+
+main_app/migrations/
+
+*.log
+*.sqlite3
